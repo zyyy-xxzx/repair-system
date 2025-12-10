@@ -1,0 +1,872 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>设备报修系统</title>
+  <!-- 引入外部资源 -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.8/dist/chart.umd.min.js"></script>
+  
+  <!-- Tailwind 配置 -->
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            primary: '#165DFF',
+            secondary: '#36CFC9',
+            success: '#52C41A',
+            warning: '#FAAD14',
+            danger: '#FF4D4F',
+            gray: {
+              100: '#F5F7FA',
+              200: '#E4E7ED',
+              300: '#C0C4CC',
+              400: '#909399',
+              500: '#606266',
+              600: '#303133',
+            }
+          },
+          fontFamily: {
+            sans: ['Inter', 'system-ui', 'sans-serif'],
+          },
+          boxShadow: {
+            'card': '0 4px 20px 0 rgba(0, 0, 0, 0.08)',
+            'hover': '0 8px 30px 0 rgba(22, 93, 255, 0.15)',
+          }
+        },
+      }
+    }
+  </script>
+  
+  <!-- 自定义工具类 -->
+  <style type="text/tailwindcss">
+    @layer utilities {
+      .content-auto {
+        content-visibility: auto;
+      }
+      .form-input-focus {
+        @apply focus:border-primary focus:ring-2 focus:ring-primary/20 focus:outline-none;
+      }
+      .btn-primary {
+        @apply bg-primary text-white px-6 py-3 rounded-lg font-medium transition-all duration-300 hover:bg-primary/90 hover:shadow-lg active:scale-95;
+      }
+      .btn-secondary {
+        @apply bg-white border border-gray-200 text-gray-600 px-6 py-3 rounded-lg font-medium transition-all duration-300 hover:bg-gray-100 active:scale-95;
+      }
+      .card {
+        @apply bg-white rounded-xl shadow-card p-6 transition-all duration-300 hover:shadow-hover;
+      }
+    }
+  </style>
+</head>
+<body class="bg-gray-100 font-sans text-gray-600 min-h-screen">
+  <!-- 顶部导航 -->
+  <nav class="bg-white shadow-sm fixed top-0 left-0 right-0 z-50 transition-all duration-300" id="navbar">
+    <div class="container mx-auto px-4 py-3 flex justify-between items-center">
+      <div class="flex items-center space-x-2">
+        <i class="fa fa-wrench text-primary text-2xl"></i>
+        <h1 class="text-xl font-bold text-gray-600">设备报修系统</h1>
+      </div>
+      <div class="flex items-center space-x-4">
+        <a href="#repair" class="text-gray-500 hover:text-primary transition-colors duration-300">
+          <i class="fa fa-qrcode mr-1"></i>扫码报修
+        </a>
+        <!-- 关键修改1：添加 hidden sm:block 类，手机端（小屏幕）隐藏，电脑端显示 -->
+        <a href="#admin" class="hidden sm:block text-gray-500 hover:text-primary transition-colors duration-300">
+          <i class="fa fa-cog mr-1"></i>后台管理
+        </a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- 主内容区 -->
+  <main class="container mx-auto px-4 pt-24 pb-16">
+    <!-- 报修页面 -->
+    <section id="repair" class="mb-20">
+      <div class="max-w-md mx-auto">
+        <div class="card">
+          <div class="text-center mb-6">
+            <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary/10 text-primary mb-4">
+              <i class="fa fa-wrench text-2xl"></i>
+            </div>
+            <h2 class="text-xl font-bold text-gray-600">设备故障报修</h2>
+            <p class="text-gray-400 mt-1">请填写以下信息提交报修申请</p>
+          </div>
+          
+          <form id="repairForm" class="space-y-4">
+            <!-- 报修人工号 -->
+            <div>
+              <label for="staffId" class="block text-sm font-medium text-gray-500 mb-1">报修人工号 <span class="text-danger">*</span></label>
+              <div class="relative">
+                <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400">
+                  <i class="fa fa-id-card-o"></i>
+                </span>
+                <input type="text" id="staffId" name="staffId" required
+                  class="w-full pl-10 pr-3 py-3 border border-gray-200 rounded-lg form-input-focus transition-all duration-300"
+                  placeholder="请输入您的工号">
+              </div>
+            </div>
+            
+            <!-- 设备类型 -->
+            <div>
+              <label for="deviceType" class="block text-sm font-medium text-gray-500 mb-1">设备类型 <span class="text-danger">*</span></label>
+              <div class="relative">
+                <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400">
+                  <i class="fa fa-desktop"></i>
+                </span>
+                <select id="deviceType" name="deviceType" required
+                  class="w-full pl-10 pr-10 py-3 border border-gray-200 rounded-lg form-input-focus appearance-none transition-all duration-300 bg-white">
+                  <option value="" disabled selected>请选择设备类型</option>
+                  <!-- 设备类型选项将通过JS动态加载 -->
+                </select>
+                <span class="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 pointer-events-none">
+                  <i class="fa fa-chevron-down text-xs"></i>
+                </span>
+              </div>
+            </div>
+            
+            <!-- 设备编码 -->
+            <div>
+              <label for="deviceCode" class="block text-sm font-medium text-gray-500 mb-1">设备编码 <span class="text-danger">*</span></label>
+              <div class="relative">
+                <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400">
+                  <i class="fa fa-barcode"></i>
+                </span>
+                <input type="text" id="deviceCode" name="deviceCode" required
+                  class="w-full pl-10 pr-3 py-3 border border-gray-200 rounded-lg form-input-focus transition-all duration-300"
+                  placeholder="请输入设备编码">
+              </div>
+            </div>
+            
+            <!-- 故障类型 -->
+            <div>
+              <label for="faultType" class="block text-sm font-medium text-gray-500 mb-1">故障类型 <span class="text-danger">*</span></label>
+              <div class="relative">
+                <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400">
+                  <i class="fa fa-exclamation-triangle"></i>
+                </span>
+                <select id="faultType" name="faultType" required
+                  class="w-full pl-10 pr-10 py-3 border border-gray-200 rounded-lg form-input-focus appearance-none transition-all duration-300 bg-white">
+                  <option value="" disabled selected>请选择故障类型</option>
+                  <!-- 故障类型选项将通过JS动态加载 -->
+                </select>
+                <span class="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 pointer-events-none">
+                  <i class="fa fa-chevron-down text-xs"></i>
+                </span>
+              </div>
+            </div>
+            
+            <!-- 报修地点 -->
+            <div>
+              <label for="repairLocation" class="block text-sm font-medium text-gray-500 mb-1">报修地点 <span class="text-danger">*</span></label>
+              <div class="relative">
+                <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400">
+                  <i class="fa fa-map-marker"></i>
+                </span>
+                <input type="text" id="repairLocation" name="repairLocation" required
+                  class="w-full pl-10 pr-3 py-3 border border-gray-200 rounded-lg form-input-focus transition-all duration-300"
+                  placeholder="请输入具体报修地点（如：3楼302办公室）">
+              </div>
+            </div>
+            
+            <!-- 报修时间（隐藏字段，自动生成） -->
+            <input type="hidden" id="repairTime" name="repairTime">
+            
+            <!-- 补充说明 -->
+            <div>
+              <label for="description" class="block text-sm font-medium text-gray-500 mb-1">补充说明</label>
+              <div class="relative">
+                <span class="absolute inset-y-3 left-3 text-gray-400">
+                  <i class="fa fa-comment-o"></i>
+                </span>
+                <textarea id="description" name="description" rows="3"
+                  class="w-full pl-10 pr-3 py-3 border border-gray-200 rounded-lg form-input-focus transition-all duration-300 resize-none"
+                  placeholder="请详细描述故障现象（选填）"></textarea>
+              </div>
+            </div>
+            
+            <!-- 提交按钮 -->
+            <button type="submit" class="btn-primary w-full flex items-center justify-center">
+              <i class="fa fa-paper-plane mr-2"></i>提交报修申请
+            </button>
+          </form>
+        </div>
+        
+        <!-- 报修成功提示 -->
+        <div id="successAlert" class="hidden mt-6 bg-success/10 border border-success/30 text-success rounded-lg p-4 text-center">
+          <div class="flex flex-col items-center">
+            <i class="fa fa-check-circle text-3xl mb-2"></i>
+            <h3 class="font-medium">报修申请提交成功！</h3>
+            <p class="text-sm mt-1">我们将尽快安排人员处理，请耐心等待</p>
+            <button id="closeAlert" class="mt-3 text-sm text-success hover:text-success/80 transition-colors">
+              关闭
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+    
+    <!-- 后台管理页面 -->
+    <section id="admin" class="mb-16">
+      <div class="max-w-4xl mx-auto">
+        <div class="card">
+          <div class="flex justify-between items-center mb-6">
+            <div>
+              <h2 class="text-xl font-bold text-gray-600">后台管理</h2>
+              <p class="text-gray-400 mt-1">管理设备类型、故障类型和查看报修记录</p>
+            </div>
+            <button id="toggleAdminPass" class="text-sm text-gray-400 hover:text-primary transition-colors">
+              <i class="fa fa-lock mr-1"></i>解锁管理
+            </button>
+          </div>
+          
+          <!-- 密码验证 -->
+          <div id="adminAuth" class="mb-6 hidden">
+            <div class="flex items-center space-x-3">
+              <input type="password" id="adminPassword" placeholder="请输入管理密码（默认：admin123）"
+                class="flex-1 px-3 py-2 border border-gray-200 rounded-lg form-input-focus">
+              <button id="verifyAdmin" class="btn-primary px-4 py-2 text-sm">验证</button>
+            </div>
+            <p id="passwordError" class="text-danger text-sm mt-1 hidden">密码错误，请重试</p>
+          </div>
+          
+          <!-- 管理内容（默认隐藏，验证后显示） -->
+          <div id="adminContent" class="hidden space-y-8">
+            <!-- 设备类型管理 -->
+            <div>
+              <h3 class="text-lg font-medium text-gray-600 mb-4 flex items-center">
+                <i class="fa fa-desktop text-primary mr-2"></i>设备类型管理
+              </h3>
+              
+              <div class="flex space-x-3 mb-4">
+                <input type="text" id="newDeviceType" placeholder="添加新的设备类型"
+                  class="flex-1 px-3 py-2 border border-gray-200 rounded-lg form-input-focus">
+                <button id="addDeviceType" class="btn-primary px-4 py-2 text-sm">添加</button>
+              </div>
+              
+              <div class="bg-gray-50 rounded-lg p-4 max-h-60 overflow-y-auto">
+                <ul id="deviceTypeList" class="space-y-2">
+                  <!-- 设备类型列表将通过JS动态加载 -->
+                </ul>
+              </div>
+            </div>
+            
+            <!-- 故障类型管理 -->
+            <div>
+              <h3 class="text-lg font-medium text-gray-600 mb-4 flex items-center">
+                <i class="fa fa-list-ul text-primary mr-2"></i>故障类型管理
+              </h3>
+              
+              <div class="flex space-x-3 mb-4">
+                <input type="text" id="newFaultType" placeholder="添加新的故障类型"
+                  class="flex-1 px-3 py-2 border border-gray-200 rounded-lg form-input-focus">
+                <button id="addFaultType" class="btn-primary px-4 py-2 text-sm">添加</button>
+              </div>
+              
+              <div class="bg-gray-50 rounded-lg p-4 max-h-60 overflow-y-auto">
+                <ul id="faultTypeList" class="space-y-2">
+                  <!-- 故障类型列表将通过JS动态加载 -->
+                </ul>
+              </div>
+            </div>
+            
+            <!-- 报修记录统计 -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <h3 class="text-lg font-medium text-gray-600 mb-4 flex items-center">
+                  <i class="fa fa-bar-chart text-primary mr-2"></i>按设备类型统计
+                </h3>
+                <div class="h-64">
+                  <canvas id="deviceTypeChart"></canvas>
+                </div>
+              </div>
+              <div>
+                <h3 class="text-lg font-medium text-gray-600 mb-4 flex items-center">
+                  <i class="fa fa-pie-chart text-primary mr-2"></i>按故障类型统计
+                </h3>
+                <div class="h-64">
+                  <canvas id="faultTypeChart"></canvas>
+                </div>
+              </div>
+            </div>
+            
+            <!-- 报修记录列表 -->
+            <div>
+              <h3 class="text-lg font-medium text-gray-600 mb-4 flex items-center">
+                <i class="fa fa-history text-primary mr-2"></i>报修记录
+              </h3>
+              <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                  <thead>
+                    <tr>
+                      <th class="px-3 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">工号</th>
+                      <th class="px-3 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">设备类型</th>
+                      <th class="px-3 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">设备编码</th>
+                      <th class="px-3 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">故障类型</th>
+                      <th class="px-3 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">报修地点</th>
+                      <th class="px-3 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">报修时间</th>
+                    </tr>
+                  </thead>
+                  <tbody id="repairRecords" class="bg-white divide-y divide-gray-200">
+                    <!-- 报修记录将通过JS动态加载 -->
+                  </tbody>
+                </table>
+              </div>
+              <p id="noRecords" class="text-center text-gray-400 py-4 hidden">暂无报修记录</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- 页脚 -->
+  <footer class="bg-white border-t border-gray-200 py-6">
+    <div class="container mx-auto px-4 text-center text-gray-400 text-sm">
+      <p>© 2025 设备报修系统 - 扫码报修解决方案</p>
+      <!-- 关键修改2：修改技术支持文字 -->
+      <p class="mt-1">技术支持：浙大一院信息化与人工智能部</p>
+    </div>
+  </footer>
+
+  <!-- 回到顶部按钮 -->
+  <button id="backToTop" class="fixed bottom-6 right-6 w-12 h-12 rounded-full bg-primary text-white shadow-lg flex items-center justify-center opacity-0 invisible transition-all duration-300 hover:bg-primary/90">
+    <i class="fa fa-arrow-up"></i>
+  </button>
+
+  <!-- JavaScript 逻辑 -->
+  <script>
+    // 初始化数据
+    const initFaultTypes = [
+      '无法开机',
+      '运行异响',
+      '屏幕故障',
+      '网络连接问题',
+      '软件报错',
+      '硬件损坏'
+    ];
+    
+    const initDeviceTypes = [
+      '台式电脑',
+      '黑白激光打印机',
+      '读卡器',
+      '彩色打印机',
+      'PDA',
+      '移动护理推车',
+      '条码打印机',
+      '无线签字平板',
+      '会议会诊屏',
+      '其他'
+    ];
+    
+    // 从本地存储加载数据或使用初始数据
+    function loadFaultTypes() {
+      const stored = localStorage.getItem('faultTypes');
+      return stored ? JSON.parse(stored) : initFaultTypes;
+    }
+    
+    function saveFaultTypes(types) {
+      localStorage.setItem('faultTypes', JSON.stringify(types));
+    }
+    
+    function loadDeviceTypes() {
+      const stored = localStorage.getItem('deviceTypes');
+      return stored ? JSON.parse(stored) : initDeviceTypes;
+    }
+    
+    function saveDeviceTypes(types) {
+      localStorage.setItem('deviceTypes', JSON.stringify(types));
+    }
+    
+    function loadRepairRecords() {
+      const stored = localStorage.getItem('repairRecords');
+      return stored ? JSON.parse(stored) : [];
+    }
+    
+    function saveRepairRecord(record) {
+      const records = loadRepairRecords();
+      // 生成当前时间（精确到秒）
+      const now = new Date();
+      const repairTime = now.toLocaleString('zh-CN', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+      });
+      
+      records.unshift({
+        ...record,
+        id: Date.now(),
+        repairTime: repairTime
+      });
+      localStorage.setItem('repairRecords', JSON.stringify(records));
+      return records;
+    }
+    
+    // 渲染故障类型选项
+    function renderFaultTypeOptions() {
+      const faultTypes = loadFaultTypes();
+      const select = document.getElementById('faultType');
+      
+      // 清空现有选项（保留第一个）
+      while (select.options.length > 1) {
+        select.remove(1);
+      }
+      
+      // 添加新选项
+      faultTypes.forEach(type => {
+        const option = document.createElement('option');
+        option.value = type;
+        option.textContent = type;
+        select.appendChild(option);
+      });
+      
+      // 同时更新管理页面的列表
+      renderFaultTypeList();
+    }
+    
+    // 渲染设备类型选项
+    function renderDeviceTypeOptions() {
+      const deviceTypes = loadDeviceTypes();
+      const select = document.getElementById('deviceType');
+      
+      // 清空现有选项（保留第一个）
+      while (select.options.length > 1) {
+        select.remove(1);
+      }
+      
+      // 添加新选项
+      deviceTypes.forEach(type => {
+        const option = document.createElement('option');
+        option.value = type;
+        option.textContent = type;
+        select.appendChild(option);
+      });
+      
+      // 同时更新管理页面的列表
+      renderDeviceTypeList();
+    }
+    
+    // 渲染故障类型管理列表
+    function renderFaultTypeList() {
+      const faultTypes = loadFaultTypes();
+      const list = document.getElementById('faultTypeList');
+      list.innerHTML = '';
+      
+      faultTypes.forEach((type, index) => {
+        const li = document.createElement('li');
+        li.className = 'flex justify-between items-center p-2 bg-white rounded border border-gray-100 hover:border-primary/30 transition-colors';
+        li.innerHTML = `
+          <span>${type}</span>
+          <button class="delete-fault-type text-gray-400 hover:text-danger transition-colors" data-index="${index}">
+            <i class="fa fa-trash-o"></i>
+          </button>
+        `;
+        list.appendChild(li);
+      });
+      
+      // 添加删除事件监听
+      document.querySelectorAll('.delete-fault-type').forEach(btn => {
+        btn.addEventListener('click', function() {
+          const index = parseInt(this.getAttribute('data-index'));
+          const faultTypes = loadFaultTypes();
+          faultTypes.splice(index, 1);
+          saveFaultTypes(faultTypes);
+          renderFaultTypeOptions();
+        });
+      });
+    }
+    
+    // 渲染设备类型管理列表
+    function renderDeviceTypeList() {
+      const deviceTypes = loadDeviceTypes();
+      const list = document.getElementById('deviceTypeList');
+      list.innerHTML = '';
+      
+      deviceTypes.forEach((type, index) => {
+        const li = document.createElement('li');
+        li.className = 'flex justify-between items-center p-2 bg-white rounded border border-gray-100 hover:border-primary/30 transition-colors';
+        li.innerHTML = `
+          <span>${type}</span>
+          <button class="delete-device-type text-gray-400 hover:text-danger transition-colors" data-index="${index}">
+            <i class="fa fa-trash-o"></i>
+          </button>
+        `;
+        list.appendChild(li);
+      });
+      
+      // 添加删除事件监听
+      document.querySelectorAll('.delete-device-type').forEach(btn => {
+        btn.addEventListener('click', function() {
+          const index = parseInt(this.getAttribute('data-index'));
+          const deviceTypes = loadDeviceTypes();
+          deviceTypes.splice(index, 1);
+          saveDeviceTypes(deviceTypes);
+          renderDeviceTypeOptions();
+        });
+      });
+    }
+    
+    // 渲染报修记录
+    function renderRepairRecords() {
+      const records = loadRepairRecords();
+      const tableBody = document.getElementById('repairRecords');
+      const noRecords = document.getElementById('noRecords');
+      
+      if (records.length === 0) {
+        tableBody.innerHTML = '';
+        noRecords.classList.remove('hidden');
+        return;
+      }
+      
+      noRecords.classList.add('hidden');
+      tableBody.innerHTML = '';
+      
+      records.forEach(record => {
+        const tr = document.createElement('tr');
+        tr.className = 'hover:bg-gray-50 transition-colors';
+        tr.innerHTML = `
+          <td class="px-3 py-4 whitespace-nowrap">${record.staffId}</td>
+          <td class="px-3 py-4 whitespace-nowrap">${record.deviceType}</td>
+          <td class="px-3 py-4 whitespace-nowrap">${record.deviceCode}</td>
+          <td class="px-3 py-4 whitespace-nowrap">${record.faultType}</td>
+          <td class="px-3 py-4 whitespace-nowrap">${record.repairLocation}</td>
+          <td class="px-3 py-4 whitespace-nowrap text-gray-400 text-sm">${record.repairTime}</td>
+        `;
+        tableBody.appendChild(tr);
+      });
+      
+      // 更新统计图表
+      updateStatisticCharts();
+    }
+    
+    // 更新统计图表
+    function updateStatisticCharts() {
+      const records = loadRepairRecords();
+      
+      // 1. 设备类型统计图表
+      const deviceTypeCtx = document.getElementById('deviceTypeChart').getContext('2d');
+      const deviceTypeCount = {};
+      
+      records.forEach(record => {
+        deviceTypeCount[record.deviceType] = (deviceTypeCount[record.deviceType] || 0) + 1;
+      });
+      
+      // 销毁现有图表
+      if (window.deviceTypeChartInstance) {
+        window.deviceTypeChartInstance.destroy();
+      }
+      
+      window.deviceTypeChartInstance = new Chart(deviceTypeCtx, {
+        type: 'bar',
+        data: {
+          labels: Object.keys(deviceTypeCount),
+          datasets: [{
+            label: '报修次数',
+            data: Object.values(deviceTypeCount),
+            backgroundColor: '#165DFF',
+            borderRadius: 4
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              display: false
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              ticks: {
+                precision: 0
+              }
+            }
+          }
+        }
+      });
+      
+      // 2. 故障类型统计图表
+      const faultTypeCtx = document.getElementById('faultTypeChart').getContext('2d');
+      const faultTypeCount = {};
+      
+      records.forEach(record => {
+        faultTypeCount[record.faultType] = (faultTypeCount[record.faultType] || 0) + 1;
+      });
+      
+      // 销毁现有图表
+      if (window.faultTypeChartInstance) {
+        window.faultTypeChartInstance.destroy();
+      }
+      
+      window.faultTypeChartInstance = new Chart(faultTypeCtx, {
+        type: 'doughnut',
+        data: {
+          labels: Object.keys(faultTypeCount),
+          datasets: [{
+            data: Object.values(faultTypeCount),
+            backgroundColor: [
+              '#165DFF', '#36CFC9', '#52C41A', '#FAAD14', '#FF4D4F', 
+              '#722ED1', '#F5222D', '#1890FF', '#00C48C', '#FF7D00',
+              '#8C8C8C', '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4'
+            ],
+            borderWidth: 0
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              position: 'right',
+              labels: {
+                boxWidth: 12,
+                padding: 15,
+                font: {
+                  size: 11
+                }
+              }
+            },
+            tooltip: {
+              callbacks: {
+                label: function(context) {
+                  const label = context.label || '';
+                  const value = context.raw || 0;
+                  const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                  const percentage = Math.round((value / total) * 100);
+                  return `${label}: ${value}次 (${percentage}%)`;
+                }
+              }
+            }
+          },
+          cutout: '65%'
+        }
+      });
+    }
+    
+    // 页面加载完成后初始化
+    document.addEventListener('DOMContentLoaded', function() {
+      // 渲染设备类型选项
+      renderDeviceTypeOptions();
+      
+      // 渲染故障类型选项
+      renderFaultTypeOptions();
+      
+      // 渲染报修记录
+      renderRepairRecords();
+      
+      // 报修表单提交
+      const repairForm = document.getElementById('repairForm');
+      const successAlert = document.getElementById('successAlert');
+      
+      repairForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        // 获取表单数据
+        const formData = new FormData(this);
+        const record = {
+          staffId: formData.get('staffId'),
+          deviceType: formData.get('deviceType'),
+          deviceCode: formData.get('deviceCode'),
+          faultType: formData.get('faultType'),
+          repairLocation: formData.get('repairLocation'),
+          description: formData.get('description') || ''
+        };
+        
+        // 保存报修记录（自动生成报修时间）
+        saveRepairRecord(record);
+        
+        // 显示成功提示
+        successAlert.classList.remove('hidden');
+        
+        // 重置表单
+        this.reset();
+        
+        // 重新渲染报修记录
+        renderRepairRecords();
+        
+        // 3秒后自动隐藏提示
+        setTimeout(() => {
+          successAlert.classList.add('hidden');
+        }, 5000);
+      });
+      
+      // 关闭成功提示
+      document.getElementById('closeAlert').addEventListener('click', function() {
+        successAlert.classList.add('hidden');
+      });
+      
+      // 添加故障类型
+      document.getElementById('addFaultType').addEventListener('click', function() {
+        const input = document.getElementById('newFaultType');
+        const type = input.value.trim();
+        
+        if (type) {
+          const faultTypes = loadFaultTypes();
+          if (!faultTypes.includes(type)) {
+            faultTypes.push(type);
+            saveFaultTypes(faultTypes);
+            renderFaultTypeOptions();
+            input.value = '';
+            
+            // 显示添加成功的提示
+            input.classList.add('border-success');
+            setTimeout(() => {
+              input.classList.remove('border-success');
+            }, 1000);
+          } else {
+            // 已存在该故障类型
+            input.classList.add('border-danger');
+            setTimeout(() => {
+              input.classList.remove('border-danger');
+            }, 1000);
+          }
+        } else {
+          input.classList.add('border-danger');
+          setTimeout(() => {
+            input.classList.remove('border-danger');
+          }, 1000);
+        }
+      });
+      
+      // 添加设备类型
+      document.getElementById('addDeviceType').addEventListener('click', function() {
+        const input = document.getElementById('newDeviceType');
+        const type = input.value.trim();
+        
+        if (type) {
+          const deviceTypes = loadDeviceTypes();
+          if (!deviceTypes.includes(type)) {
+            deviceTypes.push(type);
+            saveDeviceTypes(deviceTypes);
+            renderDeviceTypeOptions();
+            input.value = '';
+            
+            // 显示添加成功的提示
+            input.classList.add('border-success');
+            setTimeout(() => {
+              input.classList.remove('border-success');
+            }, 1000);
+          } else {
+            // 已存在该设备类型
+            input.classList.add('border-danger');
+            setTimeout(() => {
+              input.classList.remove('border-danger');
+            }, 1000);
+          }
+        } else {
+          input.classList.add('border-danger');
+          setTimeout(() => {
+            input.classList.remove('border-danger');
+          }, 1000);
+        }
+      });
+      
+      // 后台管理密码验证
+      const toggleAdminPass = document.getElementById('toggleAdminPass');
+      const adminAuth = document.getElementById('adminAuth');
+      const adminContent = document.getElementById('adminContent');
+      const verifyAdmin = document.getElementById('verifyAdmin');
+      const adminPassword = document.getElementById('adminPassword');
+      const passwordError = document.getElementById('passwordError');
+      
+      toggleAdminPass.addEventListener('click', function() {
+        adminAuth.classList.toggle('hidden');
+      });
+      
+      verifyAdmin.addEventListener('click', function() {
+        // 实际项目中应使用安全的密码验证方式
+        if (adminPassword.value === 'admin123') {
+          adminAuth.classList.add('hidden');
+          adminContent.classList.remove('hidden');
+          passwordError.classList.add('hidden');
+          
+          // 更新图表
+          updateStatisticCharts();
+        } else {
+          passwordError.classList.remove('hidden');
+          adminPassword.classList.add('border-danger');
+          setTimeout(() => {
+            adminPassword.classList.remove('border-danger');
+          }, 1000);
+        }
+      });
+      
+      // 回车提交密码
+      adminPassword.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+          verifyAdmin.click();
+        }
+      });
+      
+      // 回车添加故障类型
+      document.getElementById('newFaultType').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+          document.getElementById('addFaultType').click();
+        }
+      });
+      
+      // 回车添加设备类型
+      document.getElementById('newDeviceType').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+          document.getElementById('addDeviceType').click();
+        }
+      });
+      
+      // 导航栏滚动效果
+      const navbar = document.getElementById('navbar');
+      window.addEventListener('scroll', function() {
+        if (window.scrollY > 10) {
+          navbar.classList.add('shadow');
+          navbar.classList.remove('shadow-sm');
+        } else {
+          navbar.classList.remove('shadow');
+          navbar.classList.add('shadow-sm');
+        }
+      });
+      
+      // 回到顶部按钮
+      const backToTop = document.getElementById('backToTop');
+      window.addEventListener('scroll', function() {
+        if (window.scrollY > 300) {
+          backToTop.classList.remove('opacity-0', 'invisible');
+          backToTop.classList.add('opacity-100', 'visible');
+        } else {
+          backToTop.classList.add('opacity-0', 'invisible');
+          backToTop.classList.remove('opacity-100', 'visible');
+        }
+      });
+      
+      backToTop.addEventListener('click', function() {
+        window.scrollTo({
+          top: 0,
+          behavior: 'smooth'
+        });
+      });
+      
+      // 平滑滚动
+      document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+        anchor.addEventListener('click', function (e) {
+          e.preventDefault();
+          
+          const targetId = this.getAttribute('href');
+          const targetElement = document.querySelector(targetId);
+          
+          if (targetElement) {
+            window.scrollTo({
+              top: targetElement.offsetTop - 80,
+              behavior: 'smooth'
+            });
+          }
+        });
+      });
+    });
+  </script>
+</body>
+</html>
